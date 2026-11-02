@@ -82,6 +82,16 @@ figures against the page.
 One browser per test. Slower than a shared session, but no test can leak cart
 state into another, and failures reproduce on their own.
 
+Chrome's password manager is switched off in `conftest.py`. Without that, Chrome
+opens a "Save password?" bubble about one second after the login form submits.
+The bubble takes the input focus, so every later click and key press from the
+driver is dropped before it reaches the page, while JavaScript clicks still
+work. The symptom was four tests that passed right after login and timed out a
+few seconds later, in headless mode and in headed mode under Xvfb alike. Finding
+it took three steps: confirm that no mouse event reached the page (a capture
+listener on `window` saw nothing), confirm that the same clicks worked through
+Playwright, then compare what Playwright turns off that chromedriver leaves on.
+
 ## Selenium 4 features used
 
 - Selenium Manager for automatic driver resolution

@@ -52,6 +52,20 @@ def _chrome_options() -> Options:
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-background-networking")
     options.add_argument("--no-first-run")
+    # Turn off Chrome's password manager. Without this, Chrome opens a
+    # "Save password?" bubble about one second after the login form submits.
+    # The bubble takes the input focus, so every later click and key press
+    # from the driver is dropped before it reaches the page, while JavaScript
+    # clicks still work. The symptom is a test that passes right after login
+    # and times out a few seconds later. Headless mode does not avoid it.
+    options.add_experimental_option(
+        "prefs",
+        {
+            "credentials_enable_service": False,
+            "profile.password_manager_enabled": False,
+            "profile.password_manager_leak_detection": False,
+        },
+    )
     binary = os.getenv("CHROME_BINARY")
     if binary:
         options.binary_location = binary
