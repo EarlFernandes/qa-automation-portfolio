@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-evals"
+version = "1.0.0"
+description = "Evaluation harness and CI release gate for LLM structured extraction (invoice emails to JSON)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Earl Fernandes" }]
+keywords = ["llm", "evaluation", "evals", "golden dataset", "ci gate", "quality", "testing"]
+dependencies = [
+  "pydantic>=2.5",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+openai = ["openai>=1.40"]
+anthropic = ["anthropic>=0.40"]
+
+[project.scripts]
+llm-evals = "llm_evals.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "auth_user.schema.json",
+  "title": "Login response",
+  "type": "object",
+  "required": ["id", "username", "email", "firstName", "lastName", "accessToken", "refreshToken"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "username": { "type": "string", "minLength": 1 },
+    "email": { "type": "string", "format": "email" },
+    "firstName": { "type": "string" },
+    "lastName": { "type": "string" },
+    "gender": { "type": "string" },
+    "image": { "type": "string", "format": "uri" },
+    "accessToken": { "type": "string", "minLength": 20 },
+    "refreshToken": { "type": "string", "minLength": 20 }
+  }
+}

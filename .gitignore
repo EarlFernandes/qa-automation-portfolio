@@ -1,0 +1,38 @@
+# Node
+node_modules/
+playwright/test-results/
+playwright/playwright-report/
+playwright/results/
+playwright/.auth/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Test output
+selenium/results/*
+!selenium/results/.gitkeep
+!selenium/results/screenshots/
+selenium/results/screenshots/*
+!selenium/results/screenshots/.gitkeep
+api-tests/results/*
+!api-tests/results/.gitkeep
+llm-evals/reports/*
+!llm-evals/reports/.gitkeep
+jmeter/results/*
+!jmeter/results/.gitkeep
+*.jtl
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/

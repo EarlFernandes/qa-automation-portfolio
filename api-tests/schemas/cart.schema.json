@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cart.schema.json",
+  "title": "Cart",
+  "type": "object",
+  "required": ["id", "products", "total", "discountedTotal", "userId", "totalProducts", "totalQuantity"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "userId": { "type": "integer", "minimum": 1 },
+    "total": { "type": "number", "minimum": 0 },
+    "discountedTotal": { "type": "number", "minimum": 0 },
+    "totalProducts": { "type": "integer", "minimum": 0 },
+    "totalQuantity": { "type": "integer", "minimum": 0 },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "price", "quantity", "total", "discountPercentage", "discountedPrice"],
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "price": { "type": "number", "minimum": 0 },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "total": { "type": "number", "minimum": 0 },
+          "discountPercentage": { "type": "number", "minimum": 0, "maximum": 100 },
+          "discountedPrice": { "type": "number", "minimum": 0 },
+          "thumbnail": { "type": "string", "format": "uri" }
+        }
+      }
+    }
+  }
+}

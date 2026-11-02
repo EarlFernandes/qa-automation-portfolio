@@ -1,0 +1,38 @@
+# Release gate thresholds for the invoice extraction evals.
+#
+# mode:
+#   blocking  - a failure fails the gate
+#   warn      - a failure is shown as WARN and never fails the gate
+#   candidate - warn until the metric has passed in two consecutive recorded
+#               runs, then it is treated as blocking (promotion policy)
+#
+# Comparison is ">=" unless stated. Latency uses "<=".
+metrics:
+  extraction_rate:
+    threshold: 0.90
+    comparison: ">="
+    mode: blocking
+  schema_conformance_rate:
+    threshold: 0.90
+    comparison: ">="
+    mode: blocking
+  mean_field_accuracy:
+    threshold: 0.75
+    comparison: ">="
+    mode: blocking
+  mean_completeness:
+    threshold: 0.80
+    comparison: ">="
+    mode: blocking
+  p95_latency_ms:
+    threshold: 5000
+    comparison: "<="
+    mode: blocking
+  case_pass_rate:
+    threshold: 0.85
+    comparison: ">="
+    mode: candidate
+  judge_override_rate:
+    threshold: 0.20
+    comparison: "<="
+    mode: warn
