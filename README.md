@@ -34,21 +34,21 @@ Targets: [saucedemo.com](https://www.saucedemo.com) for the browser suites, [dum
 
 ```mermaid
 flowchart TB
-    CI["GitHub Actions: ci.yml<br/>runs on every push and pull request"]
+    CI["GitHub Actions: ci.yml"]
     CI --> PW & SE & CT & EV
     subgraph UI["Browser tests"]
-        PW["Playwright<br/>TypeScript"]
-        SE["Selenium<br/>Python"]
+        PW["Playwright, TypeScript"]
+        SE["Selenium, Python"]
     end
     subgraph API["API tests"]
-        CT["Contract tests<br/>pytest + JSON Schema"]
-        JM["Load test<br/>JMeter, manual workflow"]
+        CT["Contract tests, pytest"]
+        JM["Load test, JMeter"]
     end
     subgraph AI["AI quality"]
-        EV["LLM evals<br/>golden dataset + scoring"] --> GT["Release gate<br/>fails the build when a blocking metric drops"]
+        EV["LLM evals"] --> GT["Release gate"]
     end
     PW & SE --> SITE["saucedemo.com"]
-    CT & JM --> DJ["dummyjson.com<br/>countries GraphQL"]
+    CT & JM --> DJ["dummyjson.com"]
 ```
 
 More diagrams, including the Playwright fixture graph and the eval pipeline, are in [`docs/architecture.md`](docs/architecture.md).
@@ -100,7 +100,7 @@ A `Makefile` at the root wraps the same commands: `make playwright`, `make selen
 
 Senior QA Engineer and SDET with 8+ years in test automation, API testing, performance testing and release quality, now focused on quality for AI and LLM products. Open to remote roles.
 
-- LinkedIn: [linkedin.com/in/earl-a-5434b02a8](https://www.linkedin.com/in/earl-a-5434b02a8)
+- LinkedIn: [linkedin.com/in/earl-fernandes-qa](https://www.linkedin.com/in/earl-fernandes-qa/)
 - Email: earlspen2001@gmail.com
 
 ## License
