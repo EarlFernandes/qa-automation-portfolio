@@ -1,0 +1,13 @@
+{
+  "_comment": "Known accessibility findings per page, by axe rule id. The a11y project fails on any critical finding and on any rule id that is not listed here. Remove an entry when the site fixes the issue. Scan tags: wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice.",
+  "login": {
+    "page-has-heading-one": "moderate, best practice: the login page has no h1, the logo is a div",
+    "region": "moderate, best practice: the login form is not inside a landmark region"
+  },
+  "inventory": {
+    "page-has-heading-one": "moderate, best practice: the Products title is a span, not an h1"
+  },
+  "cart": {
+    "page-has-heading-one": "moderate, best practice: the Your Cart title is a span, not an h1"
+  }
+}

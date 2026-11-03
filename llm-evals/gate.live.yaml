@@ -1,0 +1,47 @@
+# Release gate thresholds for LIVE runs against a real model.
+#
+# Use with the live history file so live and offline runs keep separate streaks:
+#   llm-evals gate --results reports/results.json --config gate.live.yaml --history reports/gate_history.live.json
+#
+# Policy for a new model or a new prompt: only the checks that must hold on day
+# one are blocking (the output parses, it matches the schema, it comes back in
+# time). Quality metrics start as candidates. A candidate is reported as WARN
+# until it has passed in two consecutive recorded runs. From then on it blocks.
+# This keeps the first live runs green while the thresholds prove they are
+# stable, and it stops a regression once a metric has earned blocking status.
+#
+# mode:
+#   blocking  - a failure fails the gate
+#   candidate - warn until two consecutive passes, then blocking (promotion policy)
+#   warn      - a failure is shown as WARN and never fails the gate
+#
+# Comparison is ">=" unless stated. Latency uses "<=".
+metrics:
+  extraction_rate:
+    threshold: 0.90
+    comparison: ">="
+    mode: blocking
+  schema_conformance_rate:
+    threshold: 0.90
+    comparison: ">="
+    mode: blocking
+  mean_field_accuracy:
+    threshold: 0.80
+    comparison: ">="
+    mode: candidate
+  mean_completeness:
+    threshold: 0.85
+    comparison: ">="
+    mode: candidate
+  case_pass_rate:
+    threshold: 0.70
+    comparison: ">="
+    mode: warn
+  p95_latency_ms:
+    threshold: 60000
+    comparison: "<="
+    mode: blocking
+  judge_override_rate:
+    threshold: 0.25
+    comparison: "<="
+    mode: warn

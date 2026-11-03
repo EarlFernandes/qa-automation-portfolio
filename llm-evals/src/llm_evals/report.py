@@ -23,6 +23,8 @@ METRIC_LABELS = {
     "mean_completeness": "Completeness",
     "p95_latency_ms": "p95 latency",
     "judge_override_rate": "Judge overrides",
+    "total_input_tokens": "Input tokens",
+    "total_output_tokens": "Output tokens",
 }
 
 
@@ -58,6 +60,8 @@ def write_junit(path: Path, run_info: dict[str, Any], scores: list[CaseScore]) -
 def _fmt_metric(name: str, value: float) -> str:
     if name.endswith("_ms"):
         return f"{value:.0f} ms"
+    if name.endswith("_tokens"):
+        return f"{int(value):,}"
     return f"{value:.1%}"
 
 
@@ -101,16 +105,19 @@ def write_html(path: Path, run_info: dict[str, Any], metrics: dict[str, float], 
         if name in metrics:
             cards.append(f'<div class="card"><div class="label">{html.escape(label)}</div><div class="value">{_fmt_metric(name, metrics[name])}</div></div>')
 
+    show_tokens = any(score.input_tokens is not None or score.output_tokens is not None for score in scores)
     rows = []
     for score in scores:
         status = '<span class="pass">PASS</span>' if score.passed else '<span class="fail">FAIL</span>'
         tags = "".join(f'<span class="tag">{html.escape(tag)}</span>' for tag in score.tags)
         failed = sum(1 for check in score.checks if not check.passed)
+        tokens = f"<td>{score.input_tokens or 0} / {score.output_tokens or 0}</td>" if show_tokens else ""
         rows.append(
             f"<tr><td><a href=\"#case-{html.escape(score.case_id)}\">{html.escape(score.case_id)}</a></td><td>{tags}</td>"
             f"<td>{status}</td><td>{score.field_accuracy:.0%}</td><td>{score.completeness:.0%}</td>"
-            f"<td>{'yes' if score.schema_ok else 'no'}</td><td>{failed}</td><td>{score.latency_ms:.0f} ms</td></tr>"
+            f"<td>{'yes' if score.schema_ok else 'no'}</td><td>{failed}</td><td>{score.latency_ms:.0f} ms</td>{tokens}</tr>"
         )
+    token_header = "<th>Tokens in / out</th>" if show_tokens else ""
 
     details = []
     for score in scores:
@@ -142,7 +149,7 @@ def write_html(path: Path, run_info: dict[str, Any], metrics: dict[str, float], 
 {passed} of {len(scores)} cases passed · {html.escape(str(run_info.get("timestamp")))}</div>
 <div class="cards">{"".join(cards)}</div>
 <h2>Cases</h2>
-<table><tr><th>Case</th><th>Tags</th><th>Status</th><th>Field accuracy</th><th>Completeness</th><th>Schema</th><th>Failed checks</th><th>Latency</th></tr>
+<table><tr><th>Case</th><th>Tags</th><th>Status</th><th>Field accuracy</th><th>Completeness</th><th>Schema</th><th>Failed checks</th><th>Latency</th>{token_header}</tr>
 {"".join(rows)}</table>
 <h2>Details</h2>
 <p class="note">Failed cases are expanded. Each row is one check: expected value from the answer key, actual value from the extractor.</p>

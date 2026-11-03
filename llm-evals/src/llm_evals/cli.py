@@ -16,7 +16,7 @@ from typing import Any
 
 from llm_evals import __version__
 from llm_evals.dataset import Case, load_cases
-from llm_evals.extractors import Extractor, get_extractor
+from llm_evals.extractors import EXTRACTOR_NAMES, Extractor, ExtractorSetupError, get_extractor
 from llm_evals.gate import evaluate, format_table, load_config, load_history, record_run, save_history
 from llm_evals.judge import HeuristicJudge, Judge, apply_judge
 from llm_evals.report import write_html, write_junit, write_results_json
@@ -33,16 +33,27 @@ def run_case(case: Case, extractor: Extractor, judge: Judge) -> CaseScore:
         error = f"{type(exc).__name__}: {exc}"
     latency_ms = (time.perf_counter() - started) * 1000
     score = score_case(case.id, case.expected, actual, latency_ms, tags=case.tags, error=error)
+    usage = getattr(extractor, "last_usage", None)
+    if error is None and isinstance(usage, dict):
+        score.input_tokens = usage.get("input_tokens")
+        score.output_tokens = usage.get("output_tokens")
     if error is None:
         apply_judge(score, judge)
     return score
 
 
-def run(dataset: Path, extractor_name: str, out_dir: Path, limit: int | None = None, judge: Judge | None = None) -> tuple[dict[str, float], list[CaseScore]]:
+def run(
+    dataset: Path,
+    extractor_name: str,
+    out_dir: Path,
+    limit: int | None = None,
+    judge: Judge | None = None,
+    model: str | None = None,
+) -> tuple[dict[str, float], list[CaseScore]]:
     cases = load_cases(dataset)
     if limit:
         cases = cases[:limit]
-    extractor = get_extractor(extractor_name)
+    extractor = get_extractor(extractor_name, model=model)
     judge = judge or HeuristicJudge()
     scores = [run_case(case, extractor, judge) for case in cases]
     metrics = compute_metrics(scores)
@@ -72,11 +83,18 @@ def _print_run_summary(metrics: dict[str, float], scores: list[CaseScore], out_d
     for name in ("extraction_rate", "schema_conformance_rate", "mean_field_accuracy", "mean_completeness", "case_pass_rate", "judge_override_rate"):
         print(f"{name}: {metrics[name]:.3f}")
     print(f"p95_latency_ms: {metrics['p95_latency_ms']:.0f}")
+    if "total_input_tokens" in metrics:
+        print(f"tokens: {int(metrics['total_input_tokens'])} in, {int(metrics['total_output_tokens'])} out")
     print(f"reports: {out_dir / 'report.html'}, {out_dir / 'results.json'}, {out_dir / 'junit.xml'}")
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    metrics, scores = run(Path(args.dataset), args.extractor, Path(args.out), limit=args.limit)
+    try:
+        metrics, scores = run(Path(args.dataset), args.extractor, Path(args.out), limit=args.limit, model=args.model)
+    except ExtractorSetupError as exc:
+        # Missing key or missing SDK: say what to do, no traceback.
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     _print_run_summary(metrics, scores, Path(args.out))
     return 0
 
@@ -103,7 +121,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = sub.add_parser("run", help="run the extractor on the dataset and write reports")
     run_parser.add_argument("--dataset", default="data/golden.jsonl")
-    run_parser.add_argument("--extractor", default="regex", choices=["regex", "openai", "anthropic"])
+    run_parser.add_argument("--extractor", default="regex", choices=list(EXTRACTOR_NAMES))
+    run_parser.add_argument("--model", default=None, help="model name for the openai or anthropic extractor (else LLM_MODEL, else the adapter default)")
     run_parser.add_argument("--out", default="reports")
     run_parser.add_argument("--limit", type=int, default=None, help="only run the first N cases")
     run_parser.set_defaults(func=cmd_run)

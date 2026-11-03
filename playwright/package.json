@@ -2,13 +2,16 @@
   "name": "qa-portfolio-playwright",
   "version": "1.0.0",
   "private": true,
-  "description": "Playwright end-to-end suite for the Swag Labs demo shop: page objects, fixtures, tags, aria snapshots and CI-ready reporting.",
+  "description": "Playwright end-to-end suite for the Swag Labs demo shop: page objects, fixtures, tags, aria snapshots, self-healing locators, axe accessibility scans, visual regression and CI-ready reporting.",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "test": "playwright test",
+    "test:ci": "playwright test --grep-invert @quarantine",
     "test:smoke": "playwright test --grep @smoke",
+    "test:a11y": "playwright test --project=a11y",
+    "test:visual": "playwright test -c playwright.visual.config.ts",
     "test:headed": "playwright test --headed --project=chromium",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug --project=chromium",
@@ -17,6 +20,7 @@
     "lint": "eslint ."
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "1.63.0",
     "@types/node": "^22.0.0",

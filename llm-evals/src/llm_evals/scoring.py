@@ -56,6 +56,9 @@ class CaseScore:
     judge_verdict: str | None = None
     judge_reason: str | None = None
     judge_override: bool = False
+    # Token usage is filled in only when the extractor reports it (model adapters).
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
     def recompute(self) -> None:
         """Recalculate the summary numbers after a check changed (the judge does this)."""
@@ -257,7 +260,7 @@ def compute_metrics(scores: list[CaseScore]) -> dict[str, float]:
     if count == 0:
         return {}
     extracted = [score for score in scores if score.error is None and score.actual]
-    return {
+    metrics = {
         "case_count": float(count),
         "passed_count": float(sum(1 for score in scores if score.passed)),
         "extraction_rate": len(extracted) / count,
@@ -268,3 +271,7 @@ def compute_metrics(scores: list[CaseScore]) -> dict[str, float]:
         "p95_latency_ms": percentile([score.latency_ms for score in scores], 95),
         "judge_override_rate": sum(1 for score in scores if score.judge_override) / count,
     }
+    if any(score.input_tokens is not None or score.output_tokens is not None for score in scores):
+        metrics["total_input_tokens"] = float(sum(score.input_tokens or 0 for score in scores))
+        metrics["total_output_tokens"] = float(sum(score.output_tokens or 0 for score in scores))
+    return metrics

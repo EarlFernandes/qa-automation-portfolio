@@ -16,13 +16,13 @@ Everything runs offline by default. No API key and no network are needed.
 
 ```mermaid
 flowchart LR
-    D[(Golden dataset<br/>data/golden.jsonl)] --> E[Extractor<br/>regex, openai or anthropic]
-    E --> S[Scoring<br/>schema, fields, line items]
-    S --> J[Judge<br/>second opinion on vendor names]
-    J --> R[Reports<br/>results.json, junit.xml, report.html]
-    R --> G{Gate<br/>gate.yaml + run history}
-    G -->|exit 0| OK[Release can go ahead]
-    G -->|exit 1| STOP[Release is blocked]
+    D[("Golden dataset: data/golden.jsonl")] --> E["Extractor: regex, openai or anthropic"]
+    E --> S["Scoring: schema, fields, line items"]
+    S --> J["Judge: second opinion on vendor names"]
+    J --> R["Reports: results.json, junit.xml, report.html"]
+    R --> G{"Gate: gate.yaml and run history"}
+    G -->|"exit 0"| OK["Release can go ahead"]
+    G -->|"exit 1"| STOP["Release is blocked"]
 ```
 
 One run does this for every case:
@@ -102,21 +102,43 @@ judge_override_rate      0.071  <= 0.200    warn                    PASS
 gate: PASS
 ```
 
-## Plug in a real model
+## Run against a real model
 
-The extractor contract is one method: `extract(text) -> dict`. Two reference adapters are included:
+The extractor contract is one method: `extract(text) -> dict`. Two adapters are included and share one code path for prompts, JSON parsing and retries (`src/llm_evals/extractors/_llm_common.py`). The prompt embeds the `Invoice` JSON schema and asks for JSON only. The reply is parsed even when the model adds a sentence or a code fence. Rate limit, overloaded and connection errors are retried three times with exponential backoff. Auth errors fail at once with a plain message.
+
+Anthropic:
+
+```bash
+pip install -e ".[anthropic]"
+export ANTHROPIC_API_KEY=...            # never commit this
+llm-evals run --dataset data/golden.jsonl --extractor anthropic --model claude-haiku-4-5 --out reports/
+llm-evals gate --results reports/results.json --config gate.live.yaml --history reports/gate_history.live.json
+```
+
+OpenAI:
 
 ```bash
 pip install -e ".[openai]"
 export OPENAI_API_KEY=...
-llm-evals run --extractor openai
-
-pip install -e ".[anthropic]"
-export ANTHROPIC_API_KEY=...
-llm-evals run --extractor anthropic
+llm-evals run --dataset data/golden.jsonl --extractor openai --model gpt-4o-mini --out reports/
+llm-evals gate --results reports/results.json --config gate.live.yaml --history reports/gate_history.live.json
 ```
 
-Both adapters lock the model output to the `Invoice` JSON schema (OpenAI through `response_format`, Anthropic through a forced tool call). They are reference code: the tests never call them, and they are not part of the offline run. To add another model, write a class with `name` and `extract` and register it in `src/llm_evals/extractors/__init__.py`.
+`--model` overrides the default. Without it the adapter reads `LLM_MODEL`, then falls back to `claude-haiku-4-5` or `gpt-4o-mini`. `--limit 3` runs the first three cases, which is enough to check a key before a full run. A missing key or a missing SDK stops the run with exit code 2 and one line that says what to set.
+
+Live runs use their own gate file and their own history file. `gate.live.yaml` keeps only the day one checks blocking (the output parses, it matches the schema, it comes back within 60 seconds). Field accuracy and completeness start as candidates and become blocking after two consecutive passing runs. The separate history file keeps live and offline streaks apart.
+
+Token usage: when the SDK reports it, each case records `input_tokens` and `output_tokens` in `results.json`, the case table in the HTML report gets a "Tokens in / out" column, and two summary cards show the totals. The regex run has no tokens, so these fields stay absent there.
+
+To add another model, write a class with `name` and `extract`, set `last_usage` if you want token counts, and register it in `src/llm_evals/extractors/__init__.py`.
+
+## Live runs in CI
+
+The pull request gate stays the offline regex run. It needs no key and no network, so CI never depends on a third party API to merge code.
+
+A second workflow runs the live evals on a schedule (weekly) and by hand. It reads the API key from a repository secret, runs the adapter on all 14 cases, and gates with `gate.live.yaml`. With 14 short emails a run costs a few cents. The live gate history is cached between runs, so the promotion policy works there too: a candidate metric shows WARN on its first two clean runs and blocks from the third. A real regression in field accuracy then fails the scheduled run and shows up in the Actions tab, while pull requests keep merging on the offline gate.
+
+The report artifact of a live run has the same shape as the offline one, plus the token columns, so one HTML page shows accuracy, latency and spend side by side.
 
 ## Read the HTML report
 
@@ -133,7 +155,8 @@ Both adapters lock the model output to the `Invoice` JSON schema (OpenAI through
 
 ```
 llm-evals/
-  gate.yaml                 thresholds and modes
+  gate.yaml                 thresholds and modes for the offline run
+  gate.live.yaml            thresholds for live model runs, candidates first
   data/golden.jsonl         14 synthetic cases (answer keys)
   data/generate_golden.py   regenerates the dataset from one source of truth
   data/README.md            answer key rules
@@ -145,8 +168,8 @@ llm-evals/
     gate.py                 thresholds, modes, promotion policy, history
     report.py               results.json, junit.xml, report.html
     cli.py                  run and gate commands
-    extractors/             regex baseline, OpenAI and Anthropic adapters
-  tests/                    30 tests: scoring rules, gate policy, end to end
+    extractors/             regex baseline, OpenAI and Anthropic adapters, shared prompt, parser and retry code
+  tests/                    47 tests: scoring rules, gate policy, adapters with fake clients, end to end
 ```
 
 ## Design notes

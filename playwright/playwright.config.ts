@@ -13,6 +13,8 @@ import { defineConfig, devices } from '@playwright/test';
  *   report stays small and still has what you need to debug.
  */
 const isCI = !!process.env.CI;
+/** Specs that run in their own projects and not in the functional browser projects. */
+const FUNCTIONAL_IGNORE = [/tests\/unit\//, /tests\/a11y\.spec\.ts/, /tests\/visual\//];
 /** Written by tests/auth.setup.ts and read by the browser projects. */
 export const STORAGE_STATE = path.join(__dirname, '.auth/standard_user.json');
 
@@ -25,6 +27,10 @@ export default defineConfig({
   timeout: 45_000,
   expect: { timeout: 10_000 },
   outputDir: 'test-results',
+
+  // Clears healing events before the run and writes the healing report after it.
+  globalSetup: './src/healing/reset.ts',
+  globalTeardown: './src/healing/report.ts',
 
   reporter: [
     ['list'],
@@ -56,16 +62,25 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: /tests\/unit\//,
+      testIgnore: FUNCTIONAL_IGNORE,
       use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
       dependencies: ['setup'],
     },
     {
       name: 'mobile-chrome',
-      testIgnore: /tests\/unit\//,
+      testIgnore: FUNCTIONAL_IGNORE,
       use: { ...devices['Pixel 7'], storageState: STORAGE_STATE },
       dependencies: ['setup'],
     },
+    // Accessibility scans with axe-core. Desktop only: the rules do not depend on viewport.
+    {
+      name: 'a11y',
+      testMatch: /tests\/a11y\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
+      dependencies: ['setup'],
+    },
+    // Visual regression lives in playwright.visual.config.ts and runs on demand:
+    // baselines are platform specific, so the default run does not include them.
     // To add more engines, install them with `npx playwright install firefox webkit`
     // and add projects that spread devices['Desktop Firefox'] and devices['Desktop Safari'].
   ],
