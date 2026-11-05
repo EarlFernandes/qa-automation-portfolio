@@ -32,7 +32,7 @@ If you have five minutes, read these in order:
 | [`selenium/`](selenium/) | Python, Selenium 4, pytest | Classic page object model with explicit waits, Selenium Manager, screenshots on failure, data-driven login | 13 tests |
 | [`api-tests/`](api-tests/) | Python, pytest, httpx, JSON Schema | Contract tests for a REST API and a GraphQL API, auth token flow, pagination math, negative cases, response time checks | 19 tests |
 | [`jmeter/`](jmeter/) | Apache JMeter 5.6 | Parameterized load plan with CSV data, JSON extraction, assertions and a non GUI run script that builds the HTML dashboard | 4 samplers |
-| [`llm-evals/`](llm-evals/) | Python, pydantic 2, Anthropic and OpenAI SDKs | Golden dataset, field accuracy with numeric tolerance, completeness, schema conformance, line item matching, heuristic judge, HTML and JUnit reports, CI release gate with a promotion policy, offline regex extractor plus live model adapters with retries and token accounting | 14 cases, 47 unit tests |
+| [`llm-evals/`](llm-evals/) | Python, pydantic 2, Anthropic and OpenAI SDKs | Golden dataset, field accuracy with numeric tolerance, completeness, schema conformance, line item matching, heuristic judge, HTML and JUnit reports, CI release gate with a promotion policy, offline regex extractor plus live model adapters with retries and token accounting | 14 cases, 53 unit tests |
 
 Targets: [saucedemo.com](https://www.saucedemo.com) for the browser suites, [dummyjson.com](https://dummyjson.com) and [countries.trevorblades.com](https://countries.trevorblades.com) for the API and load tests. The eval harness runs offline with a rule-based extractor on every pull request, and against a real model (Anthropic or OpenAI) on a weekly schedule.
 
@@ -80,7 +80,8 @@ cd api-tests && pip install -r requirements.txt && python -m pytest
 cd llm-evals && pip install -e ".[dev]" && python -m pytest
 llm-evals run --dataset data/golden.jsonl --extractor regex --out reports/
 llm-evals gate --results reports/results.json --config gate.yaml --history reports/gate_history.json
-# Same harness against a real model (needs ANTHROPIC_API_KEY or OPENAI_API_KEY)
+# Same harness against a real model: copy .env.example to .env and add your key
+cp .env.example .env && pip install -e ".[dev,anthropic]"
 llm-evals run --dataset data/golden.jsonl --extractor anthropic --out reports/
 llm-evals gate --results reports/results.json --config gate.live.yaml --history reports/gate_history.live.json
 
@@ -118,7 +119,9 @@ A `Makefile` at the root wraps the same commands: `make playwright`, `make selen
 
 [`ci.yml`](.github/workflows/ci.yml) runs four jobs in parallel on every push and pull request: Playwright (with the a11y project and the healing summary), Selenium, API tests, and the offline LLM eval run followed by the gate. Each job uploads its report as an artifact. The gate history is cached between runs so the promotion policy works in CI too.
 
-[`llm-evals-live.yml`](.github/workflows/llm-evals-live.yml) scores a real model every Monday and on demand, using the `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` repository secret, and gates with `gate.live.yaml`. [`pages.yml`](.github/workflows/pages.yml) publishes the reports to GitHub Pages after each green CI run. [`docker.yml`](.github/workflows/docker.yml) builds the Playwright image and runs the smoke tests inside it. [`jmeter.yml`](.github/workflows/jmeter.yml) runs by hand with the user count and loop count as inputs.
+[`llm-evals-live.yml`](.github/workflows/llm-evals-live.yml) scores a real model every Monday and on demand, using the `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` repository secret, and gates with `gate.live.yaml`. A full run of the 14 cases on Claude Haiku 4.5 takes about 30 seconds and under 4,000 input tokens. The adapters work with the 1.x and 2.x Anthropic SDKs and record token usage per case. [`pages.yml`](.github/workflows/pages.yml) publishes the reports to GitHub Pages after each green CI run. [`docker.yml`](.github/workflows/docker.yml) builds the Playwright image and runs the smoke tests inside it. [`jmeter.yml`](.github/workflows/jmeter.yml) runs by hand with the user count and loop count as inputs.
+
+Setup for a fork: add the `ANTHROPIC_API_KEY` secret under Settings, Secrets and variables, Actions, and set Settings, Pages, Source to GitHub Actions. Everything else runs with no configuration.
 
 ## About me
 
