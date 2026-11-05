@@ -16,6 +16,7 @@ from typing import Any
 
 from llm_evals import __version__
 from llm_evals.dataset import Case, load_cases
+from llm_evals.dotenv import load_env_file
 from llm_evals.extractors import EXTRACTOR_NAMES, Extractor, ExtractorSetupError, get_extractor
 from llm_evals.gate import evaluate, format_table, load_config, load_history, record_run, save_history
 from llm_evals.judge import HeuristicJudge, Judge, apply_judge
@@ -78,6 +79,10 @@ def _print_run_summary(metrics: dict[str, float], scores: list[CaseScore], out_d
         flag = "PASS" if score.passed else "FAIL"
         extra = "" if score.passed else f"  ({failed} failed check(s))"
         print(f"  {flag}  {score.case_id:<10} accuracy {score.field_accuracy:>5.0%}  completeness {score.completeness:>5.0%}{extra}")
+        if score.error:
+            # The extractor raised. Show why, so a bad key or an SDK change is
+            # visible in the terminal and not only in results.json.
+            print(f"        error: {score.error[:200]}")
     print()
     print(f"cases: {int(metrics['passed_count'])}/{int(metrics['case_count'])} passed")
     for name in ("extraction_rate", "schema_conformance_rate", "mean_field_accuracy", "mean_completeness", "case_pass_rate", "judge_override_rate"):
@@ -137,6 +142,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Keys for live runs can sit in a local .env file. Shell variables and CI
+    # secrets take priority over the file.
+    load_env_file()
     args = build_parser().parse_args(argv)
     return int(args.func(args))
 

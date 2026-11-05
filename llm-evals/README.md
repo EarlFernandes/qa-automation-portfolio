@@ -124,6 +124,8 @@ llm-evals run --dataset data/golden.jsonl --extractor openai --model gpt-4o-mini
 llm-evals gate --results reports/results.json --config gate.live.yaml --history reports/gate_history.live.json
 ```
 
+Keys can also live in a local `.env` file next to `pyproject.toml`: copy `.env.example` to `.env` and fill in the values. The CLI loads it on start. Shell variables and CI secrets take priority over the file, and `.env` is ignored by git, so a key never reaches the repository.
+
 `--model` overrides the default. Without it the adapter reads `LLM_MODEL`, then falls back to `claude-haiku-4-5` or `gpt-4o-mini`. `--limit 3` runs the first three cases, which is enough to check a key before a full run. A missing key or a missing SDK stops the run with exit code 2 and one line that says what to set.
 
 Live runs use their own gate file and their own history file. `gate.live.yaml` keeps only the day one checks blocking (the output parses, it matches the schema, it comes back within 60 seconds). Field accuracy and completeness start as candidates and become blocking after two consecutive passing runs. The separate history file keeps live and offline streaks apart.

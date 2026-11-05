@@ -266,3 +266,43 @@ def test_cli_fails_fast_without_a_key(monkeypatch, capsys, tmp_path):
     assert code == 2
     assert "ANTHROPIC_API_KEY is not set" in captured.err
     assert "Traceback" not in captured.err
+
+
+class StrictMessages:
+    """Behaves like anthropic 2.x: messages.create() has no temperature argument."""
+
+    def __init__(self, reply_text: str) -> None:
+        self.reply_text = reply_text
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        if "temperature" in kwargs:
+            raise TypeError("Messages.create() got an unexpected keyword argument 'temperature'")
+        self.calls.append(kwargs)
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="text", text=self.reply_text)],
+            usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+        )
+
+
+def test_anthropic_extractor_retries_without_temperature_on_sdk_2():
+    messages = StrictMessages(json.dumps(INVOICE))
+    client = SimpleNamespace(messages=messages)
+    extractor = AnthropicExtractor(model="claude-test-2", client=client)
+
+    result = extractor.extract("Invoice NW-1001 from Northwind, total 108.00 USD")
+
+    assert result == INVOICE
+    assert len(messages.calls) == 1
+    assert "temperature" not in messages.calls[0]
+    assert messages.calls[0]["max_tokens"] == 2048
+
+
+def test_call_with_optional_temperature_raises_other_errors():
+    from llm_evals.extractors._llm_common import call_with_optional_temperature
+
+    def create(**kwargs):
+        raise TypeError("got an unexpected keyword argument 'something_else'")
+
+    with pytest.raises(TypeError):
+        call_with_optional_temperature(create, model="m")

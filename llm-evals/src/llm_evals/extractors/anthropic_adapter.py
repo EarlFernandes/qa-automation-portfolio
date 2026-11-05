@@ -23,6 +23,7 @@ from llm_evals.extractors._llm_common import (
     require_env,
     usage_tokens,
     with_retries,
+    call_with_optional_temperature,
 )
 
 DEFAULT_MODEL = "claude-haiku-4-5"
@@ -52,10 +53,10 @@ class AnthropicExtractor:
         system, user = build_prompts(text)
 
         def call() -> Any:
-            return self._client.messages.create(
+            return call_with_optional_temperature(
+                self._client.messages.create,
                 model=self._model,
                 max_tokens=2048,
-                temperature=0,
                 system=system,
                 messages=[{"role": "user", "content": user}],
             )

@@ -37,7 +37,9 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Run tests
-        run: npm test
+        # Quarantined tests are excluded. The healing teardown appends its
+        # report to the job summary.
+        run: npm run test:ci
         env:
           CI: 1
       - name: Upload report

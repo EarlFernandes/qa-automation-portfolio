@@ -1,0 +1,88 @@
+name: LLM evals (live model)
+
+# Runs the invoice extraction evals against a real model. The offline regex
+# run in ci.yml stays the pull request gate, so CI never depends on a third
+# party API. This workflow needs a repository secret: ANTHROPIC_API_KEY or
+# OPENAI_API_KEY. Without one it ends with a notice and does nothing.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Model provider
+        type: choice
+        options: [anthropic, openai]
+        default: anthropic
+      model:
+        description: Model name (empty uses the provider default)
+        default: ""
+      limit:
+        description: Number of cases to run (0 runs all 14)
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  live-evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: llm-evals
+    env:
+      PROVIDER: ${{ inputs.provider || 'anthropic' }}
+      MODEL: ${{ inputs.model || '' }}
+      LIMIT: ${{ inputs.limit || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check for an API key
+        id: key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          present=false
+          if [ "$PROVIDER" = "anthropic" ] && [ -n "$ANTHROPIC_API_KEY" ]; then present=true; fi
+          if [ "$PROVIDER" = "openai" ] && [ -n "$OPENAI_API_KEY" ]; then present=true; fi
+          echo "present=$present" >> "$GITHUB_OUTPUT"
+          if [ "$present" = "false" ]; then
+            echo "::notice::No API key secret for $PROVIDER. Add ANTHROPIC_API_KEY or OPENAI_API_KEY under Settings, Secrets and variables, Actions to run live evals."
+          fi
+      - name: Install package with the provider SDK
+        if: steps.key.outputs.present == 'true'
+        run: pip install -e ".[dev,${PROVIDER}]"
+      - name: Restore live gate history
+        if: steps.key.outputs.present == 'true'
+        uses: actions/cache@v4
+        with:
+          path: llm-evals/reports/gate_history.live.json
+          key: live-gate-history-${{ github.run_id }}
+          restore-keys: live-gate-history-
+      - name: Run evals against the model
+        if: steps.key.outputs.present == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          args=(--dataset data/golden.jsonl --extractor "$PROVIDER" --out reports/)
+          if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
+          if [ "$LIMIT" != "0" ]; then args+=(--limit "$LIMIT"); fi
+          llm-evals run "${args[@]}"
+      - name: Live gate
+        if: steps.key.outputs.present == 'true'
+        run: llm-evals gate --results reports/results.json --config gate.live.yaml --history reports/gate_history.live.json
+      - name: Upload live eval report
+        if: always() && steps.key.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-evals-live-report
+          path: |
+            llm-evals/reports/report.html
+            llm-evals/reports/results.json
+            llm-evals/reports/junit.xml
+          retention-days: 30

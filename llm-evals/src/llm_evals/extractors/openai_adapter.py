@@ -23,6 +23,7 @@ from llm_evals.extractors._llm_common import (
     require_env,
     usage_tokens,
     with_retries,
+    call_with_optional_temperature,
 )
 
 DEFAULT_MODEL = "gpt-4o-mini"
@@ -51,9 +52,9 @@ class OpenAIExtractor:
         system, user = build_prompts(text)
 
         def call() -> Any:
-            return self._client.chat.completions.create(
+            return call_with_optional_temperature(
+                self._client.chat.completions.create,
                 model=self._model,
-                temperature=0,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system},

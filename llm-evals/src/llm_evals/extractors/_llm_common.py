@@ -145,3 +145,23 @@ def usage_tokens(response: Any, input_attr: str, output_attr: str) -> dict[str, 
     if inp is None and out is None:
         return None
     return {"input_tokens": int(inp or 0), "output_tokens": int(out or 0)}
+
+
+def call_with_optional_temperature(create: Callable[..., T], **kwargs: Any) -> T:
+    """Call an SDK create() with temperature=0, then without it if rejected.
+
+    Temperature 0 keeps runs repeatable where the API supports it. Newer SDKs
+    and some models reject the parameter: anthropic 2.x dropped it from
+    messages.create(), and some OpenAI models return 400 for it. In both cases
+    the call is made again without it. Any other error is raised unchanged.
+    """
+    try:
+        return create(temperature=0, **kwargs)
+    except TypeError as exc:
+        if "temperature" not in str(exc):
+            raise
+    except Exception as exc:  # an API error about the parameter
+        status = getattr(exc, "status_code", None)
+        if status != 400 or "temperature" not in str(exc).lower():
+            raise
+    return create(**kwargs)
